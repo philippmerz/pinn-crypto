@@ -38,7 +38,7 @@ $$
 X(\tau) = Q(1 - \tau)\exp\left(\mathrm{NN}(\tau)\tau\right)
 $$
 
-It naturally represents exponential-like decay. The network only needs to output a moderate scalar (~-20) rather than an extreme correction (~-12000).
+It naturally represents exponential-like decay. The network only needs to output a moderate scalar ($\approx -20$) rather than an extreme correction ($\approx -12000$).
 
 ### Residual normalization is essential
 
@@ -48,7 +48,7 @@ $$
 \frac{d^2 X}{dt^2} - \kappa^2 X
 $$
 
-scales with $\kappa^2$, making the loss ~10¹⁰ at $\kappa = 20$. Dividing by $(\kappa T)^2$ normalizes the residual to $O(1)$ regardless of $\kappa$.
+scales with $\kappa^2$, making the loss $\approx 10^{10}$ at $\kappa = 20$. Dividing by $(\kappa T)^2$ normalizes the residual to $O(1)$ regardless of $\kappa$.
 
 ### κ-curriculum (homotopy continuation)
 
