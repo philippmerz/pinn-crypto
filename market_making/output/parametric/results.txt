@@ -1,0 +1,25 @@
+Parametric MM PINN Training Results
+====================================
+Date: 2026-04-06
+Device: MPS (Apple Silicon)
+Architecture: 192-dim, 6 layers, Modified MLP
+Training: 30k Adam (lr=1e-3, cosine) + 300 L-BFGS
+FD data: 128 train / 22 holdout across (σ, κ, γ) grid
+
+Loss components (final):
+  Supervised (data): 5.01e-06
+  PDE residual:      1.05e-04
+  Terminal:           1.55e-06
+
+Holdout validation (22 unseen parameter combinations):
+  Mean error:     6.46%
+  Median error:   4.58%
+  Max error:      15.93%
+  Under 10%:      77.3% (17/22)
+  Under 5%:       54.5% (12/22)
+
+Parameter ranges:
+  σ (logit-space vol): 0.3 - 3.0
+  κ (fill rate decay): 3.0 - 20.0
+  γ (risk aversion):   0.02 - 0.5
+  q_max: 5, T: 1.0, A: 1.0
