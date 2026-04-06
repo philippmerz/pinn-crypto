@@ -121,7 +121,7 @@ def main():
         "TWAP": TWAPStrategy(INVENTORY_BTC, N_INTERVALS),
         "VWAP": VWAPStrategy(INVENTORY_BTC, window_profile),
         "AC_Analytical": AnalyticalACStrategy(INVENTORY_BTC, KAPPA, N_INTERVALS),
-        "PINN": PINNStrategy(pinn_model, 1.0, kappa=None),
+        "PINN": PINNStrategy(pinn_model, INVENTORY_BTC, N_INTERVALS, kappa=None),
     }
 
     # --- Run backtest ---

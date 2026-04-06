@@ -7,46 +7,43 @@ import numpy as np
 class PINNStrategy:
     """Execution strategy using a trained Phase 1 or Phase 2 PINN.
 
-    The PINN predicts the optimal inventory trajectory X(τ).
-    The trade rate at each interval is X(τ) - X(τ + dτ).
+    The PINN predicts the optimal normalized inventory trajectory X(τ) ∈ [0, 1].
+    The trade at interval i is:
+        trade_btc = (X(τ_i) - X(τ_{i+1})) * actual_inventory
     """
 
-    def __init__(self, model, total_inventory: float, kappa: float | None = None):
-        """
-        Args:
-            model: trained HardConstrainedExecution model
-            total_inventory: Q (used for denormalization)
-            kappa: for parametric PINN (Phase 2), the κ value to use.
-                   If None, assumes a single-κ model (Phase 1).
-        """
+    def __init__(
+        self,
+        model,
+        actual_inventory: float,
+        n_intervals: int,
+        kappa: float | None = None,
+    ):
         self.model = model
         self.model.eval()
-        self.Q = total_inventory
+        self.actual_inventory = actual_inventory
+        self.n_intervals = n_intervals
+        self.dt = 1.0 / n_intervals
         self.kappa = kappa
 
-    def _predict_inventory(self, tau: float) -> float:
-        """Predict remaining inventory at normalized time τ."""
+    def _predict_normalized_inventory(self, tau: float) -> float:
+        """Predict normalized remaining inventory X(τ) ∈ [0, 1]."""
         t_tensor = torch.tensor([[tau]], dtype=torch.float32)
         if self.kappa is not None:
             k_tensor = torch.tensor([[self.kappa]], dtype=torch.float32)
             t_tensor = torch.cat([t_tensor, k_tensor], dim=1)
-
         with torch.no_grad():
             return self.model(t_tensor).item()
 
     def get_trade_rate(self, t: float, remaining: float, market_state: dict) -> float:
         """Compute trade size for this interval."""
-        dt = 1e-3  # small step for derivative approximation
-        X_now = self._predict_inventory(t)
-        X_next = self._predict_inventory(min(t + dt, 1.0))
+        tau_next = min(t + self.dt, 1.0)
+        X_now = self._predict_normalized_inventory(t)
+        X_next = self._predict_normalized_inventory(tau_next)
 
-        # Trade rate = negative inventory change, scaled by interval size
-        # The PINN works in normalized time; we need to convert to interval size
-        rate_per_unit_time = -(X_next - X_now) / dt
-
-        # Scale by actual interval duration (1/n_intervals in normalized time)
-        # This is handled by the caller — we just return the per-interval trade
-        trade = max(rate_per_unit_time * dt * 1000, 0)  # rough scaling
+        # Denormalize: model was trained with Q=1, scale to actual inventory
+        trade = (X_now - X_next) * self.actual_inventory
+        trade = max(trade, 0.0)
         return min(trade, remaining)
 
 
@@ -65,7 +62,8 @@ class AdaptivePINNStrategy:
     def __init__(
         self,
         model,
-        total_inventory: float,
+        actual_inventory: float,
+        n_intervals: int,
         lambda_risk: float,
         base_sigma: float,
         base_eta: float,
@@ -73,7 +71,9 @@ class AdaptivePINNStrategy:
     ):
         self.model = model
         self.model.eval()
-        self.Q = total_inventory
+        self.actual_inventory = actual_inventory
+        self.n_intervals = n_intervals
+        self.dt = 1.0 / n_intervals
         self.lambda_risk = lambda_risk
         self.base_sigma = base_sigma
         self.base_eta = base_eta
@@ -90,16 +90,16 @@ class AdaptivePINNStrategy:
     def get_trade_rate(self, t: float, remaining: float, market_state: dict) -> float:
         """Compute trade size with adaptive κ."""
         kappa = self._compute_kappa(market_state)
-        kappa = np.clip(kappa, 0.1, 25.0)  # stay within trained range
+        kappa = np.clip(kappa, 0.1, 25.0)
 
-        tau = torch.tensor([[t, kappa]], dtype=torch.float32)
-        dt = 1e-3
-        tau_next = torch.tensor([[min(t + dt, 1.0), kappa]], dtype=torch.float32)
+        tau_next = min(t + self.dt, 1.0)
+        tau_tensor = torch.tensor([[t, kappa]], dtype=torch.float32)
+        tau_next_tensor = torch.tensor([[tau_next, kappa]], dtype=torch.float32)
 
         with torch.no_grad():
-            X_now = self.model(tau).item()
-            X_next = self.model(tau_next).item()
+            X_now = self.model(tau_tensor).item()
+            X_next = self.model(tau_next_tensor).item()
 
-        rate = -(X_next - X_now) / dt
-        trade = max(rate * dt * 1000, 0)
+        trade = (X_now - X_next) * self.actual_inventory
+        trade = max(trade, 0.0)
         return min(trade, remaining)
