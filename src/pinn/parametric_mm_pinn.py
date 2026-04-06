@@ -286,6 +286,7 @@ def validate_on_holdout(
     device: str = "cpu",
 ) -> dict[str, float]:
     """Validate parametric PINN on held-out FD solutions."""
+    model = model.to(device)
     model.eval()
     q_max = holdout_ds.q_max
     z = holdout_ds.z
