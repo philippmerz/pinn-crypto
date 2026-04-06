@@ -4,11 +4,11 @@
 
 A physics-informed neural network that solves the Almgren-Chriss optimal execution ODE:
 
-```
-d²X/dt² - κ²X(t) = 0,  X(0) = Q,  X(T) = 0
-```
+$$
+\frac{d^2 X}{dt^2} - \kappa^2 X(t) = 0, \qquad X(0) = Q, \qquad X(T) = 0
+$$
 
-where X(t) is remaining inventory, κ is the urgency parameter balancing market impact against timing risk.
+where $X(t)$ is remaining inventory and $\kappa$ is the urgency parameter balancing market impact against timing risk.
 
 ## What We Built
 
@@ -24,13 +24,31 @@ where X(t) is remaining inventory, κ is the urgency parameter balancing market 
 
 ### Exponential ansatz solves stiff-system failures
 
-The standard PINN ansatz `X(τ) = Q·(1-τ) + τ·(1-τ)·NN(τ)` fails at high κ (stiff ODE) because the correction term has minimal flexibility near τ=0 where the sharp decay happens.
+The standard PINN ansatz
 
-The fix: a multiplicative exponential ansatz `X(τ) = Q·(1-τ)·exp(NN(τ)·τ)` that naturally represents exponential-like decay. The network only needs to output a moderate scalar (~-20) rather than an extreme correction (~-12000).
+$$
+X(\tau) = Q(1 - \tau) + \tau(1 - \tau)\,\mathrm{NN}(\tau)
+$$
+
+fails at high $\kappa$ (stiff ODE) because the correction term has minimal flexibility near $\tau = 0$ where the sharp decay happens.
+
+The fix is a multiplicative exponential ansatz:
+
+$$
+X(\tau) = Q(1 - \tau)\exp\left(\mathrm{NN}(\tau)\tau\right)
+$$
+
+It naturally represents exponential-like decay. The network only needs to output a moderate scalar (~-20) rather than an extreme correction (~-12000).
 
 ### Residual normalization is essential
 
-The unnormalized ODE residual `d²X/dt² - κ²X` scales with κ², making the loss ~10¹⁰ at κ=20. Dividing by (κT)² normalizes the residual to O(1) regardless of κ.
+The unnormalized ODE residual
+
+$$
+\frac{d^2 X}{dt^2} - \kappa^2 X
+$$
+
+scales with $\kappa^2$, making the loss ~10¹⁰ at $\kappa = 20$. Dividing by $(\kappa T)^2$ normalizes the residual to $O(1)$ regardless of $\kappa$.
 
 ### κ-curriculum (homotopy continuation)
 
