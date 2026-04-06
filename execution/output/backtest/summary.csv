@@ -1,0 +1,5 @@
+strategy,mean_is_bps,std_is_bps,p95_is_bps,mean_completion,n_episodes,exec_sharpe
+TWAP,1.6605,9.9167,17.9952,1.0,48,-0.1674
+VWAP,1.6859,9.9359,18.1481,1.0,48,-0.1697
+AC_Analytical,1.9578,5.7899,11.1133,1.0,48,-0.3381
+PINN,1.9578,5.7899,11.1133,1.0,48,-0.3381
