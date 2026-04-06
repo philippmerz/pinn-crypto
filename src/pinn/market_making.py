@@ -65,7 +65,7 @@ def terminal_condition(z: np.ndarray, q: int, gamma: float) -> np.ndarray:
 
 
 def optimal_quotes(
-    theta: np.ndarray,
+    theta: dict,
     z: np.ndarray,
     q: int,
     q_max: int,
@@ -73,23 +73,26 @@ def optimal_quotes(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute optimal bid and ask prices from the value function.
 
-    Returns (bid_price, ask_price) in probability space [0, 1].
+    Since θ includes the full certainty equivalent (with mark-to-market),
+    the optimal quotes are derived from indifference pricing:
 
-    δ*_bid = (1/γ)·log(1 + γ/κ) + [θ(t,z,q) - θ(t,z,q+1)]
-    δ*_ask = (1/γ)·log(1 + γ/κ) + [θ(t,z,q) - θ(t,z,q-1)]
+    bid  = θ(q+1) - θ(q) - base_spread   (marginal value of buying minus spread)
+    ask  = θ(q) - θ(q-1) + base_spread   (marginal cost of selling plus spread)
 
-    bid_price = p - δ*_bid
-    ask_price = p + δ*_ask
+    At q=0, p=0.5 with small γ: bid ≈ 0.5 - base, ask ≈ 0.5 + base (symmetric).
+    With inventory: quotes skew toward reducing position.
     """
-    p = sigmoid(z)
     base = params.base_spread
 
-    # theta is a dict-like: theta[q] = array over z
-    bid_delta = base + (theta[q] - theta[min(q + 1, q_max)])
-    ask_delta = base + (theta[q] - theta[max(q - 1, -q_max)])
+    q_plus = min(q + 1, q_max)
+    q_minus = max(q - 1, -q_max)
 
-    bid_price = np.clip(p - bid_delta, 0.01, 0.99)
-    ask_price = np.clip(p + ask_delta, 0.01, 0.99)
+    # Marginal value of inventory (indifference prices)
+    bid_price = theta[q_plus] - theta[q] - base
+    ask_price = theta[q] - theta[q_minus] + base
+
+    bid_price = np.clip(bid_price, 0.01, 0.99)
+    ask_price = np.clip(ask_price, 0.01, 0.99)
 
     return bid_price, ask_price
 
